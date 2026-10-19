@@ -12,12 +12,23 @@ revealing the underlying private data (KYC score).
 
 ## Prerequisites
 
-Install [Nargo](https://noir-lang.org/docs/getting_started/installation/):
+Install [Nargo](https://noir-lang.org/docs/getting_started/installation/) **v0.38.0** (pinned).
+
+> **Version requirement** — The circuits declare `compiler_version = "=0.38.0"` in
+> `Nargo.toml`. Using a different Nargo version may produce incompatible proofs or
+> fail to compile. Always use the pinned version to ensure reproducible builds.
+>
+> If you need to upgrade, bump `NARGO_VERSION` in
+> `.github/workflows/circuit-tests.yml` **and** update `compiler_version` in every
+> `zk/circuits/*/Nargo.toml` to match.
 
 ```bash
-# Linux / macOS
+# Linux / macOS — install the pinned Nargo v0.38.0
 curl -sSL https://github.com/noir-lang/noir/releases/download/v0.38.0/nargo-x86_64-unknown-linux-gnu.tar.gz \
   | tar -xz -C /usr/local/bin
+
+# Verify the installed version matches the pin
+nargo --version   # expected: nargo version = 0.38.0
 ```
 
 ## Running circuit tests
@@ -30,6 +41,17 @@ nargo test --show-output
 
 CI runs these automatically on every PR that modifies `zk/**` via
 `.github/workflows/circuit-tests.yml`.
+
+## Cryptographic implementation note
+
+> **No native Stellar/Soroban precompile.**
+> Soroban has no hardware-accelerated or protocol-level precompile for BN254
+> elliptic curve operations or Poseidon2 hashing. All proof generation and
+> on-chain verification run as **pure-WASM Rust** compiled to
+> `wasm32-unknown-unknown`. The `BN254` curve and `Poseidon2` hash are
+> Noir/Barretenberg implementation details — they are not accelerated by any
+> particular Stellar protocol version. Do not infer on-chain guarantees from
+> those names beyond what the pure-WASM verifier provides.
 
 ## How KYC proofs work
 
@@ -46,10 +68,10 @@ CI runs these automatically on every PR that modifies `zk/**` via
              └─────────────────────────────────┘       ▼
                                                    Proof π
                                                        │
-                                                       │  verify
-                                                       ▼
+                                                       │  verify (pure-WASM Rust,
+                                                       ▼  no Soroban precompile)
                                               on-chain verifier
-                                              (future integration)
+                                              (zk_verifier Soroban contract)
 ```
 
 The circuit enforces:
